@@ -31,6 +31,7 @@ public class MyDedup {
     }
     String fileToProcess, storageType;
     Local local = new Local();
+
     switch (args[0]) {
       case "upload":
         if (args.length != 7) {
@@ -52,9 +53,16 @@ public class MyDedup {
           if (!(storageType.equals("local") || storageType.equals("azure"))) {
             usage();
             System.exit(1);
-          } else {
+          } else if (storageType.equals("local")) {
             try {
               local.upload(minChunk, avgChunk, maxChunk, d, fileToProcess, storageType);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+          } else if (storageType.equals("azure")) {
+            try {
+              Azure azure = new Azure();
+              azure.upload(minChunk, avgChunk, maxChunk, d, fileToProcess, storageType);
             } catch (Exception e) {
                 e.printStackTrace();
             }
