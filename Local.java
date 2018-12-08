@@ -314,6 +314,11 @@ public class Local{
           List<String> fileRecipe = new ArrayList<>();
           IndexList IndexList = new IndexList();
 
+          FileOutputStream indexFileOut = null;
+          ObjectOutputStream indexObjOut = null;
+          FileOutputStream recipesFileOut = null;
+          ObjectOutputStream recipesObjOut = null;
+
 
           //for local
           File dir;
@@ -333,32 +338,34 @@ public class Local{
           FileInputStream fileIn;
           ObjectInputStream objIn;
 
+          // index file
+
           File indexFile = new File(dir.getName() + "/" + indexFileName);
-          Boolean isNewIndexFile = indexFile.createNewFile();
-
-          FileOutputStream indexFileOut = null;
-          ObjectOutputStream indexObjOut = null;
-          FileOutputStream recipesFileOut = null;
-          ObjectOutputStream recipesObjOut = null;
-
-          if (!isNewIndexFile) {
+          if (indexFile.exists()){
+              System.out.println("index file exisits");
               fileIn = new FileInputStream(indexFile.getAbsolutePath());
               objIn = new ObjectInputStream(fileIn);
               IndexList = (IndexList) objIn.readObject();
               objIn.close();
               fileIn.close();
+          } else {
+              indexFile.createNewFile();
           }
-          indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
-          indexObjOut = new ObjectOutputStream(indexFileOut);
+              indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
+              indexObjOut = new ObjectOutputStream(indexFileOut);
+
+          // receipes file
 
           File recipesFile = new File(dir.getName() + "/" + recipesFileName);
-          Boolean isNewRecipesFile = recipesFile.createNewFile();
-          if (!isNewRecipesFile) {
+          if (recipesFile.exists()){
+              System.out.println("recipes file exisits");
               fileIn = new FileInputStream(recipesFile.getAbsolutePath());
               objIn = new ObjectInputStream(fileIn);
               FileRecipeList = (FileRecipeList) objIn.readObject();
               objIn.close();
               fileIn.close();
+          } else {
+              recipesFile.createNewFile();
           }
 
           recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
@@ -368,6 +375,7 @@ public class Local{
 
           for (String hashtext : recipeList) {
               IndexList.index.get(hashtext).refCount -= 1;
+              System.out.println(IndexList.index.get(hashtext).refCount);
               System.out.println("refCount -= 1");
               if (IndexList.index.get(hashtext).refCount == 0) {
                   IndexList.index.remove(hashtext);
@@ -375,10 +383,10 @@ public class Local{
                   File file = new File(dir.getName() + "/" + hashtext);
                   file.delete();
                   System.out.println("file.delete()");
+                  FileRecipeList.fileRecipes.remove(fileToDelete);
+                  System.out.println("FileRecipeList.fileRecipes is removed");
               }
           }
-
-          FileRecipeList.fileRecipes.remove(fileToDelete);
 
           indexObjOut.writeObject(IndexList);
           indexObjOut.close();
