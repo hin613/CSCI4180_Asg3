@@ -62,23 +62,24 @@ public class MyDedup {
         }
         break;
         case "download":
-          // if (args.length != 3) {
-          //   usage();
-          //   System.exit(1);
-          // } else {
+          if (args.length != 4) {
+            usage();
+            System.exit(1);
+          } else {
             fileToProcess = args[1];
-            storageType = args[2];
+            String pathName = args[2];
+            storageType = args[3];
             if (!(storageType.equals("local") || storageType.equals("azure"))) {
               usage();
               System.exit(1);
             } else {
               try {
-                local.download(fileToProcess, storageType);
+                local.download(fileToProcess, pathName, storageType);
               } catch (Exception e) {
                   e.printStackTrace();
               }
             }
-          // }
+          }
           break;
           case "delete":
             if (args.length != 3) {
