@@ -85,72 +85,67 @@ public class Azure{
     FileOutputStream recipesFileOut = null;
     ObjectOutputStream recipesObjOut = null;
 
-    switch (storageType) {
-      case "azure": {
-        dir = new File("store");
+    dir = new File("store");
 
-        // error handle
-        if (!dir.exists()) {
-            if (!dir.mkdir()) {
-                System.err.println("Failed to create directory \"store\"");
-                return;
-            }
-        }
-        if (!dir.isDirectory()) {
-            System.err.println("\"store\" is not a directory");
+    // error handle
+    if (!dir.exists()) {
+        if (!dir.mkdir()) {
+            System.err.println("Failed to create directory \"store\"");
             return;
         }
-        CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
-
-          if (blockBlobReference.exists()) {
-              blockBlobReference.downloadToFile(dir.getName() + "/" + indexFileName);
-          }
-
-          FileInputStream fileIn;
-          ObjectInputStream objIn;
-
-          // index file
-
-          File indexFile = new File(dir.getName() + "/" + indexFileName);
-          if (indexFile.exists()){
-            System.out.println("index file exisits");
-            fileIn = new FileInputStream(indexFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            IndexList = (IndexList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
-          } else {
-            indexFile.createNewFile();
-          }
-          indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
-          indexObjOut = new ObjectOutputStream(indexFileOut);
-
-          // receipes file
-
-          File recipesFile = new File(dir.getName() + "/" + recipesFileName);
-          if (recipesFile.exists()){
-            System.out.println("recipes file exisits");
-            fileIn = new FileInputStream(recipesFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            FileRecipeList = (FileRecipeList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
-          } else {
-            recipesFile.createNewFile();
-          }
-
-          if (FileRecipeList.fileRecipes.containsKey(fileToUpload)) {
-              System.err.println("Error, file already exists!");
-          }
-          recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
-          recipesObjOut = new ObjectOutputStream(recipesFileOut);
-      }
-      break;
     }
+    if (!dir.isDirectory()) {
+        System.err.println("\"store\" is not a directory");
+        return;
+    }
+    CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+
+      if (blockBlobReference.exists()) {
+          blockBlobReference.downloadToFile(dir.getName() + "/" + indexFileName);
+      }
+
+      FileInputStream fileIn;
+      ObjectInputStream objIn;
+
+      // index file
+
+      File indexFile = new File(dir.getName() + "/" + indexFileName);
+      if (indexFile.exists()){
+        System.out.println("index file exisits");
+        fileIn = new FileInputStream(indexFile.getAbsolutePath());
+        objIn = new ObjectInputStream(fileIn);
+        IndexList = (IndexList) objIn.readObject();
+        objIn.close();
+        fileIn.close();
+      } else {
+        indexFile.createNewFile();
+      }
+      indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
+      indexObjOut = new ObjectOutputStream(indexFileOut);
+
+      // receipes file
+
+      File recipesFile = new File(dir.getName() + "/" + recipesFileName);
+      if (recipesFile.exists()){
+        System.out.println("recipes file exisits");
+        fileIn = new FileInputStream(recipesFile.getAbsolutePath());
+        objIn = new ObjectInputStream(fileIn);
+        FileRecipeList = (FileRecipeList) objIn.readObject();
+        objIn.close();
+        fileIn.close();
+      } else {
+        recipesFile.createNewFile();
+      }
+
+      if (FileRecipeList.fileRecipes.containsKey(fileToUpload)) {
+          System.err.println("Error, file already exists!");
+      }
+      recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
+      recipesObjOut = new ObjectOutputStream(recipesFileOut);
+
     int maxBufferSize = (int) Runtime.getRuntime().freeMemory();
     int chunkIterations = (int) Math.ceil((1.0 * fileSize / maxBufferSize));      // count times to chunk large files
     int lastChunkSize = (int) (fileSize % maxBufferSize);
-//            MessageDigest md = MessageDigest.getInstance("SHA-1");
     long totalLogicChunks = 0;
     long totalUniqueChunks = 0;
     long totalLogicFileBytes = 0;
@@ -182,7 +177,7 @@ public class Azure{
                 }
                 currentChunkSize = m;
             } else {
-//                        fp = ((d * (fp - (exp_mod(d, m - 1, q) * fileBytes[currentPos + s - 1] % q) % q)) % q + fileBytes[currentPos + s + m - 1]) % q;
+
                 fp = (d * (fp - exp_mod(d, m - 1, q) * (int) (fileBytes[currentPos + s - 1] & 0xff)) + fileBytes[currentPos + s + m - 1]) % q;
                 while (fp < 0) {
                     fp += q;
@@ -209,43 +204,34 @@ public class Azure{
             int numOfChunks = offset.size();
 
             // Do some file settings here
-            switch (storageType) {
-                case "azure":
-                    for (int i = 0; i < numOfChunks; i++) {
-                      MessageDigest md = MessageDigest.getInstance("SHA-256");
-                      md.update(Arrays.copyOfRange(fileBytes, offset.get(i), offset.get(i) + chunkSize.get(i)));
+            for (int i = 0; i < numOfChunks; i++) {
+              MessageDigest md = MessageDigest.getInstance("SHA-256");
+              md.update(Arrays.copyOfRange(fileBytes, offset.get(i), offset.get(i) + chunkSize.get(i)));
 
-                      byte[] messageDigest = md.digest();
+              byte[] messageDigest = md.digest();
 
-                      BigInteger no = new BigInteger(1, messageDigest);
+              BigInteger no = new BigInteger(1, messageDigest);
 
-                      String hashtext = no.toString(16);
+              String hashtext = no.toString(16);
 
-                      while (hashtext.length() < 32) {
-                          hashtext = "0" + hashtext;
-                      }
+              while (hashtext.length() < 32) {
+                  hashtext = "0" + hashtext;
+              }
 
-                        if (IndexList.index.containsKey(hashtext)) { // already have that chunk, reuse it
+                if (IndexList.index.containsKey(hashtext)) { // already have that chunk, reuse it
 
+                    IndexList.index.get(hashtext).refCount += 1;
+                    fileRecipe.add(hashtext);
+                } else {         // if no entry of this chunk in indexTable, do update, create new chunk
+                    Index index = new Index();
 
-                            IndexList.index.get(hashtext).refCount += 1;
-                            fileRecipe.add(hashtext);
+                    index.chunkSize = chunkSize.get(i);
 
-                            //System.out.println("Reused old chunk: " + hashtext);
-                            //System.out.println("New refCount: " + IndexList.index.get(hashtext).refCount);
-                        } else {         // if no entry of this chunk in indexTable, do update, create new chunk
-                            Index index = new Index();
-
-                            index.chunkSize = chunkSize.get(i);
-
-                            CloudBlockBlob blob = blobContainer.getBlockBlobReference(hashtext);
-                            blob.uploadFromByteArray(fileBytes, offset.get(i), chunkSize.get(i));
-                            IndexList.index.put(hashtext, new Index(chunkSize.get(i), 1));
-                            fileRecipe.add(hashtext);
-                        }
-                    }
-                    break;
-                default:
+                    CloudBlockBlob blob = blobContainer.getBlockBlobReference(hashtext);
+                    blob.uploadFromByteArray(fileBytes, offset.get(i), chunkSize.get(i));
+                    IndexList.index.put(hashtext, new Index(chunkSize.get(i), 1));
+                    fileRecipe.add(hashtext);
+                }
             }
 
         }
@@ -277,25 +263,203 @@ public class Azure{
     recipesObjOut.close();
     recipesFileOut.close();
 
-    switch (storageType) {
-        case "azure":
+    CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+    File source = new File(dir.getName() + "/" + indexFileName);
 
-            CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
-            File source = new File(dir.getName() + "/" + indexFileName);
-//                    FileInputStream sourceStream = new FileInputStream(source);
-            blockBlobReference.uploadFromFile(source.getAbsolutePath());
+    blockBlobReference.uploadFromFile(source.getAbsolutePath());
 
-            CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
-            File recipe = new File(dir.getName() + "/" + recipesFileName);
-//                    FileInputStream sourceStream1 = new FileInputStream(recipe);
-            recipeBlockBlobReference.uploadFromFile(recipe.getAbsolutePath());
-            deleteDir(dir);
-            break;
-    }
+    CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
+    File recipe = new File(dir.getName() + "/" + recipesFileName);
+
+    recipeBlockBlobReference.uploadFromFile(recipe.getAbsolutePath());
+    deleteDir(dir);
   } catch (Exception e) {
       e.printStackTrace();
   }
 
   }
 
+  public void download(String fileToDownload, String storageType)throws IOException{
+    String downloadedFileName = fileToDownload + ".download";
+    try {
+        FileRecipeList FileRecipeList = new FileRecipeList();
+        List<String> fileRecipe = new ArrayList<>();
+        IndexList IndexList = new IndexList();
+
+
+        //for local
+        File dir;
+
+        dir = new File("store");
+        if (!dir.exists()) {
+            if (!dir.mkdir()) {
+                System.err.println("Failed to create directory \"store\"");
+                System.err.println("Program terminated");
+                return;
+            }
+        }
+        if (!dir.isDirectory()) {
+            System.err.println("\"store\" is not a directory!");
+            return;
+        }
+        FileInputStream fileIn;
+        ObjectInputStream objIn;
+
+        CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+
+        if (blockBlobReference.exists()) {
+            blockBlobReference.download(new FileOutputStream(dir.getName() + "/" + indexFileName));
+        }
+        File indexFile = new File(dir.getName() + "/" + indexFileName);
+        Boolean isNewIndexFile = indexFile.createNewFile();
+
+
+        if (!isNewIndexFile) {
+            fileIn = new FileInputStream(indexFile.getAbsolutePath());
+            objIn = new ObjectInputStream(fileIn);
+            IndexList = (IndexList) objIn.readObject();
+            objIn.close();
+            fileIn.close();
+        }
+
+        CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
+
+        if (recipeBlockBlobReference.exists()) {
+            recipeBlockBlobReference.download(new FileOutputStream(dir.getName() + "/" + recipesFileName));
+        }
+        File recipesFile = new File(dir.getName() + "/" + recipesFileName);
+        Boolean isNewRecipesFile = recipesFile.createNewFile();
+        if (!isNewRecipesFile) {
+            fileIn = new FileInputStream(recipesFile.getAbsolutePath());
+            objIn = new ObjectInputStream(fileIn);
+            FileRecipeList = (FileRecipeList) objIn.readObject();
+            objIn.close();
+            fileIn.close();
+        }
+
+        FileInputStream fis;
+        byte[] fileBytes;
+        int bytesRead = 0;
+        FileOutputStream fos = new FileOutputStream(new File(downloadedFileName));
+        List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDownload);
+        for (String chunkName : recipeList) {
+            CloudBlockBlob blob = blobContainer.getBlockBlobReference(chunkName);
+
+            File file = new File(dir.getName() + "/" + chunkName);
+            blob.downloadToFile(file.getAbsolutePath());
+            fis = new FileInputStream(file);
+            fileBytes = new byte[(int) file.length()];
+            bytesRead = fis.read(fileBytes, 0, (int) file.length());
+            fos.write(fileBytes);
+            fos.flush();
+            fileBytes = null;
+            fis.close();
+            fis = null;
+        }
+        fos.close();
+        fos = null;
+        deleteDir(dir);
+    } catch (Exception e) {
+        System.err.println(e.getMessage());
+    }
+  }
+
+  public void delete(String fileToDelete, String storageType) throws IOException, NoSuchAlgorithmException, ClassNotFoundException{
+    try {
+        FileRecipeList FileRecipeList = new FileRecipeList();
+        List<String> fileRecipe = new ArrayList<>();
+        IndexList IndexList = new IndexList();
+        //for local
+        File dir;
+
+        dir = new File("store");
+        if (!dir.exists()) {
+            if (!dir.mkdir()) {
+                System.err.println("Failed to create directory \"store\"");
+                System.err.println("Program terminated");
+                return;
+            }
+        }
+        if (!dir.isDirectory()) {
+            System.err.println("\"store\" is not a directory!");
+            return;
+        }
+        FileInputStream fileIn;
+        ObjectInputStream objIn;
+
+        CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+
+        if (blockBlobReference.exists()) {
+            blockBlobReference.downloadToFile(dir.getName() + "/" + indexFileName);
+        }
+        File indexFile = new File(dir.getName() + "/" + indexFileName);
+        Boolean isNewIndexFile = indexFile.createNewFile();
+
+        FileOutputStream indexFileOut = null;
+        ObjectOutputStream indexObjOut = null;
+        FileOutputStream recipesFileOut = null;
+        ObjectOutputStream recipesObjOut = null;
+
+        if (!isNewIndexFile) {
+            fileIn = new FileInputStream(indexFile.getAbsolutePath());
+            objIn = new ObjectInputStream(fileIn);
+            IndexList = (IndexList) objIn.readObject();
+            objIn.close();
+            fileIn.close();
+        }
+        indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
+        indexObjOut = new ObjectOutputStream(indexFileOut);
+
+        CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
+
+        if (recipeBlockBlobReference.exists()) {
+            recipeBlockBlobReference.downloadToFile(dir.getName() + "/" + recipesFileName);
+        }
+        File recipesFile = new File(dir.getName() + "/" + recipesFileName);
+        Boolean isNewRecipesFile = recipesFile.createNewFile();
+        if (!isNewRecipesFile) {
+            fileIn = new FileInputStream(recipesFile.getAbsolutePath());
+            objIn = new ObjectInputStream(fileIn);
+            FileRecipeList = (FileRecipeList) objIn.readObject();
+            objIn.close();
+            fileIn.close();
+        }
+
+        recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
+        recipesObjOut = new ObjectOutputStream(recipesFileOut);
+
+        List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDelete);
+
+        for (String sha1Hex : recipeList) {
+            IndexList.index.get(sha1Hex).refCount -= 1;
+            if (IndexList.index.get(sha1Hex).refCount == 0) {
+                IndexList.index.remove(sha1Hex);
+                CloudBlockBlob blob = blobContainer.getBlockBlobReference(sha1Hex);
+                FileRecipeList.fileRecipes.remove(fileToDelete);
+                blob.deleteIfExists();
+            }
+        }
+
+        indexObjOut.writeObject(IndexList);
+        indexObjOut.close();
+        indexFileOut.close();
+
+        recipesObjOut.writeObject(FileRecipeList);
+        recipesObjOut.close();
+        recipesFileOut.close();
+
+        CloudBlockBlob indexFileNameBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+        File source = new File(dir.getName() + "/" + indexFileName);
+        indexFileNameBlobReference.uploadFromFile(source.getAbsolutePath());
+
+        CloudBlockBlob recipesFileNameBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
+        File recipe = new File(dir.getName() + "/" + recipesFileName);
+        recipesFileNameBlobReference.uploadFromFile(recipe.getAbsolutePath());
+
+        deleteDir(dir);
+
+    } catch (Exception e) {
+        System.err.println(e.getMessage());
+    }
+  }
 }

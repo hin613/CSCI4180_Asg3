@@ -79,9 +79,17 @@ public class MyDedup {
             if (!(storageType.equals("local") || storageType.equals("azure"))) {
               usage();
               System.exit(1);
-            } else {
+            } else if (storageType.equals("local")) {
               try {
                 local.download(fileToProcess, storageType);
+              } catch (Exception e) {
+                  e.printStackTrace();
+              }
+            }
+            else if (storageType.equals("azure")) {
+              try {
+                Azure azure = new Azure();
+                azure.download(fileToProcess, storageType);
               } catch (Exception e) {
                   e.printStackTrace();
               }
@@ -98,9 +106,16 @@ public class MyDedup {
               if (!(storageType.equals("local") || storageType.equals("azure"))) {
                 usage();
                 System.exit(1);
-              } else {
+              } else if (storageType.equals("local")) {
                 try {
                   local.delete(fileToProcess, storageType);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+              } else if (storageType.equals("azure")) {
+                try {
+                  Azure azure = new Azure();
+                  azure.delete(fileToProcess, storageType);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
