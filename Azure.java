@@ -47,7 +47,7 @@ public class Azure{
     }
 	}
 
-  public static int exp_mod(int base, int exp, int modulus) {
+  public static int baseMod(int base, int exp, int modulus) {
     base %= modulus;
     int result = 1;
     while (exp > 0) {
@@ -71,37 +71,48 @@ public class Azure{
   public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload, String storageType) throws IOException, NoSuchAlgorithmException, ClassNotFoundException, URISyntaxException{
     File file = new File(fileToUpload);
     try {
-    long fileSize = file.length();
+      long fileSize = file.length();
 
-    FileInputStream fis = new FileInputStream(file);
-    FileRecipeList FileRecipeList = new FileRecipeList();
-    List<String> fileRecipe = new ArrayList<>();
-    IndexList IndexList = new IndexList();
-    //for local
-    File dir = null;
+      FileInputStream fis = new FileInputStream(file);
+      FileRecipeList FileRecipeList = new FileRecipeList();
+      List<String> fileRecipe = new ArrayList<>();
+      IndexList IndexList = new IndexList();
 
-    FileOutputStream indexFileOut = null;
-    ObjectOutputStream indexObjOut = null;
-    FileOutputStream recipesFileOut = null;
-    ObjectOutputStream recipesObjOut = null;
+      //for local
+      File dir = null;
 
-    dir = new File("store");
+      FileOutputStream indexFileOut = null;
+      ObjectOutputStream indexObjOut = null;
+      FileOutputStream recipesFileOut = null;
+      ObjectOutputStream recipesObjOut = null;
 
-    // error handle
-    if (!dir.exists()) {
+      int maxBufferSize = (int) Runtime.getRuntime().freeMemory();
+      int chunkIterations = (int) Math.ceil((1.0 * fileSize / maxBufferSize));
+      int lastChunkSize = (int) (fileSize % maxBufferSize);
+      long s2 = 0;
+      long s1 = 0;
+      long totalChunks = 0;
+      long dedupChunks = 0;
+      double spaceSaving = 0;
+
+      dir = new File("store");
+
+      // error handle
+      if (!dir.exists()) {
         if (!dir.mkdir()) {
-            System.err.println("Failed to create directory \"store\"");
-            return;
+          System.err.println("Failed to create directory \"store\"");
+          return;
         }
-    }
-    if (!dir.isDirectory()) {
+      }
+      if (!dir.isDirectory()) {
         System.err.println("\"store\" is not a directory");
         return;
-    }
-    CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
+      }
+
+      CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
 
       if (blockBlobReference.exists()) {
-          blockBlobReference.downloadToFile(dir.getName() + "/" + indexFileName);
+        blockBlobReference.downloadToFile(dir.getName() + "/" + indexFileName);
       }
 
       FileInputStream fileIn;
@@ -111,7 +122,7 @@ public class Azure{
 
       File indexFile = new File(dir.getName() + "/" + indexFileName);
       if (indexFile.exists()){
-        System.out.println("index file exisits");
+        //System.out.println("index file exisits");
         fileIn = new FileInputStream(indexFile.getAbsolutePath());
         objIn = new ObjectInputStream(fileIn);
         IndexList = (IndexList) objIn.readObject();
@@ -127,7 +138,7 @@ public class Azure{
 
       File recipesFile = new File(dir.getName() + "/" + recipesFileName);
       if (recipesFile.exists()){
-        System.out.println("recipes file exisits");
+        //System.out.println("recipes file exisits");
         fileIn = new FileInputStream(recipesFile.getAbsolutePath());
         objIn = new ObjectInputStream(fileIn);
         FileRecipeList = (FileRecipeList) objIn.readObject();
@@ -138,144 +149,135 @@ public class Azure{
       }
 
       if (FileRecipeList.fileRecipes.containsKey(fileToUpload)) {
-          System.err.println("Error, file already exists!");
+        System.err.println("Error, file already exists!");
       }
       recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
       recipesObjOut = new ObjectOutputStream(recipesFileOut);
 
-    int maxBufferSize = (int) Runtime.getRuntime().freeMemory();
-    int chunkIterations = (int) Math.ceil((1.0 * fileSize / maxBufferSize));      // count times to chunk large files
-    int lastChunkSize = (int) (fileSize % maxBufferSize);
-    long totalLogicChunks = 0;
-    long totalUniqueChunks = 0;
-    long totalLogicFileBytes = 0;
-    long totalUniqueFileBytes = 0;
-    double spaceSaving = 0;
-
-    for (int iteration = 0; iteration < chunkIterations; iteration++) {
+      for (int iteration = 0; iteration < chunkIterations; iteration++) {
         byte[] fileBytes;
+        // initilize chunk size
         if (iteration == chunkIterations - 1) {
-            fileBytes = new byte[lastChunkSize];
+          fileBytes = new byte[lastChunkSize];
         } else {
-            fileBytes = new byte[maxBufferSize];
+          fileBytes = new byte[maxBufferSize];
         }
         fis.read(fileBytes);
         int fileChunkSize = fileBytes.length;
         int m = minChunk;
         int q = avgChunk;
         int s = 0;
-        int currentChunkSize = 0;
-        int currentPos = 0;
-        int fp = 0;
-        List<Integer> offset = new ArrayList<>();
+        int mask = (int)Math.pow(2, m) - 1;
+
+        int currSize = 0;
+        int cursor = 0;
+        int rfp = 0;
+
+        List<Integer> checkSum = new ArrayList<>();
         List<Integer> chunkSize = new ArrayList<>();
-        while ((currentPos + currentChunkSize <= fileChunkSize) && (currentPos + m <= fileChunkSize)) {
-            if (s == 0) {
-                fp = 0;
-                for (int i = 1; i <= m; i++) {
-                    fp = (fp + ((int) (fileBytes[currentPos + i - 1] & 0xff) * exp_mod(d, m - i, q))) % q;
-                }
-                currentChunkSize = m;
+
+        while ((cursor + currSize <= fileChunkSize) && (cursor + m <= fileChunkSize)) {
+          if (s == 0) {
+            rfp = 0;
+            for (int i = 1; i <= m; i++) {
+              rfp = (rfp + ((int) (fileBytes[cursor + i - 1] & mask) * baseMod(d, m - i, q))) % q;
+            }
+            currSize = m;
+          } else {
+            rfp = (d * (rfp - baseMod(d, m - 1, q) * (int) (fileBytes[cursor + s - 1] & mask)) + fileBytes[cursor + s + m - 1]) % q;
+            while (rfp < 0) {
+              rfp += q;
+            }
+            currSize++;
+          }
+          if ((rfp & mask) == 0 || currSize == maxChunk || cursor + currSize >= fileChunkSize) {
+            checkSum.add(cursor);
+            chunkSize.add(currSize);
+            cursor += currSize;
+            s = 0;
+            currSize = 0;
+          } else {
+            s++;
+          }
+        }
+
+        if (cursor < fileChunkSize) {
+          checkSum.add(cursor);
+          chunkSize.add(fileChunkSize - cursor);
+        }
+        if (checkSum.size() == chunkSize.size() && checkSum.size() > 0) {
+          int numOfChunks = checkSum.size();
+
+          // Do some file settings here
+          for (int i = 0; i < numOfChunks; i++) {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(Arrays.copyOfRange(fileBytes, checkSum.get(i), checkSum.get(i) + chunkSize.get(i)));
+
+            byte[] messageDigest = md.digest();
+
+            BigInteger no = new BigInteger(1, messageDigest);
+
+            String hashtext = no.toString(16);
+
+            while (hashtext.length() < 32) {
+              hashtext = "0" + hashtext;
+            }
+
+            if (IndexList.index.containsKey(hashtext)) {
+              IndexList.index.get(hashtext).refCount += 1;
+              fileRecipe.add(hashtext);
             } else {
+              Index index = new Index();
 
-                fp = (d * (fp - exp_mod(d, m - 1, q) * (int) (fileBytes[currentPos + s - 1] & 0xff)) + fileBytes[currentPos + s + m - 1]) % q;
-                while (fp < 0) {
-                    fp += q;
-                }
-                currentChunkSize++;
+              index.chunkSize = chunkSize.get(i);
+
+              CloudBlockBlob blob = blobContainer.getBlockBlobReference(hashtext);
+
+              blob.uploadFromByteArray(fileBytes, checkSum.get(i), chunkSize.get(i));
+              IndexList.index.put(hashtext, new Index(chunkSize.get(i), 1));
+              fileRecipe.add(hashtext);
             }
-            if ((fp & 0xFF) == 0 || currentChunkSize == maxChunk || currentPos + currentChunkSize >= fileChunkSize) {
-                // match anchor point/ reach max chunk size/ reach end of file chunk, produce one anchor point
-                offset.add(currentPos);
-                chunkSize.add(currentChunkSize);
-                currentPos += currentChunkSize;
-                s = 0;
-                currentChunkSize = 0;
-            } else {
-                s++;
-            }
+          }
         }
-        // handle special case: chunk smaller than m left behind
-        if (currentPos < fileChunkSize) {
-            offset.add(currentPos);
-            chunkSize.add(fileChunkSize - currentPos);
-        }
-        if (offset.size() == chunkSize.size() && offset.size() > 0) {
-            int numOfChunks = offset.size();
-
-            // Do some file settings here
-            for (int i = 0; i < numOfChunks; i++) {
-              MessageDigest md = MessageDigest.getInstance("SHA-256");
-              md.update(Arrays.copyOfRange(fileBytes, offset.get(i), offset.get(i) + chunkSize.get(i)));
-
-              byte[] messageDigest = md.digest();
-
-              BigInteger no = new BigInteger(1, messageDigest);
-
-              String hashtext = no.toString(16);
-
-              while (hashtext.length() < 32) {
-                  hashtext = "0" + hashtext;
-              }
-
-                if (IndexList.index.containsKey(hashtext)) { // already have that chunk, reuse it
-
-                    IndexList.index.get(hashtext).refCount += 1;
-                    fileRecipe.add(hashtext);
-                } else {         // if no entry of this chunk in indexTable, do update, create new chunk
-                    Index index = new Index();
-
-                    index.chunkSize = chunkSize.get(i);
-
-                    CloudBlockBlob blob = blobContainer.getBlockBlobReference(hashtext);
-                    blob.uploadFromByteArray(fileBytes, offset.get(i), chunkSize.get(i));
-                    IndexList.index.put(hashtext, new Index(chunkSize.get(i), 1));
-                    fileRecipe.add(hashtext);
-                }
-            }
-
-        }
-    }
-    // statistics:
-    for (String key : IndexList.index.keySet()) {
+      }
+      // statistics:
+      for (String key : IndexList.index.keySet()) {
         int refCount = IndexList.index.get(key).refCount;
         int chunkSize = IndexList.index.get(key).chunkSize;
-        totalLogicChunks += refCount;
-        totalUniqueChunks++;
-        totalLogicFileBytes += refCount * chunkSize;
-        totalUniqueFileBytes += chunkSize;
+        s2 += refCount;
+        s1++;
+        totalChunks += refCount * chunkSize;
+        dedupChunks += chunkSize;
+      }
+      spaceSaving = 1 - 1.0 * s1 / s2;
+      System.out.println("Total number of chunks in storage: " + s2);
+      System.out.println("Number of unique chunks in storage: " + s1);
+      System.out.println("Number of bytes in storage with deduplication: " + dedupChunks);
+      System.out.println("Number of bytes in storage without deduplication: " + totalChunks);
+      System.out.println("Space saving: " + spaceSaving);
+
+      FileRecipeList.fileRecipes.put(fileToUpload, fileRecipe);
+
+      indexObjOut.writeObject(IndexList);
+      indexObjOut.close();
+      indexFileOut.close();
+
+      recipesObjOut.writeObject(FileRecipeList);
+      recipesObjOut.close();
+      recipesFileOut.close();
+
+      File source = new File(dir.getName() + "/" + indexFileName);
+
+      blockBlobReference.uploadFromFile(source.getAbsolutePath());
+
+      CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
+      File recipe = new File(dir.getName() + "/" + recipesFileName);
+
+      recipeBlockBlobReference.uploadFromFile(recipe.getAbsolutePath());
+      deleteDir(dir);
+    } catch (Exception e) {
+        e.printStackTrace();
     }
-    spaceSaving = 1 - 1.0 * totalUniqueChunks / totalLogicChunks;
-    System.out.println("Total number of chunks in storage: " + totalLogicChunks);
-    System.out.println("Number of unique chunks in storage: " + totalUniqueChunks);
-    System.out.println("Number of bytes in storage with deduplication: " + totalUniqueFileBytes);
-    System.out.println("Number of bytes in storage without deduplication: " + totalLogicFileBytes);
-    System.out.println("Space saving: " + spaceSaving);
-
-
-    FileRecipeList.fileRecipes.put(fileToUpload, fileRecipe);
-
-    indexObjOut.writeObject(IndexList);
-    indexObjOut.close();
-    indexFileOut.close();
-
-    recipesObjOut.writeObject(FileRecipeList);
-    recipesObjOut.close();
-    recipesFileOut.close();
-
-    CloudBlockBlob blockBlobReference = blobContainer.getBlockBlobReference(indexFileName);
-    File source = new File(dir.getName() + "/" + indexFileName);
-
-    blockBlobReference.uploadFromFile(source.getAbsolutePath());
-
-    CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
-    File recipe = new File(dir.getName() + "/" + recipesFileName);
-
-    recipeBlockBlobReference.uploadFromFile(recipe.getAbsolutePath());
-    deleteDir(dir);
-  } catch (Exception e) {
-      e.printStackTrace();
-  }
 
   }
 
@@ -285,8 +287,6 @@ public class Azure{
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
-
-
         //for local
         File dir;
 
@@ -310,31 +310,38 @@ public class Azure{
         if (blockBlobReference.exists()) {
             blockBlobReference.download(new FileOutputStream(dir.getName() + "/" + indexFileName));
         }
+        // index file
+
         File indexFile = new File(dir.getName() + "/" + indexFileName);
-        Boolean isNewIndexFile = indexFile.createNewFile();
+        if (indexFile.exists()){
+          //System.out.println("index file exisits");
+          fileIn = new FileInputStream(indexFile.getAbsolutePath());
+          objIn = new ObjectInputStream(fileIn);
+          IndexList = (IndexList) objIn.readObject();
+          objIn.close();
+          fileIn.close();
+        } else {
+          indexFile.createNewFile();
+        }
 
+        // receipes file
 
-        if (!isNewIndexFile) {
-            fileIn = new FileInputStream(indexFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            IndexList = (IndexList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
+        File recipesFile = new File(dir.getName() + "/" + recipesFileName);
+        if (recipesFile.exists()){
+          //System.out.println("recipes file exisits");
+          fileIn = new FileInputStream(recipesFile.getAbsolutePath());
+          objIn = new ObjectInputStream(fileIn);
+          FileRecipeList = (FileRecipeList) objIn.readObject();
+          objIn.close();
+          fileIn.close();
+        } else {
+          recipesFile.createNewFile();
         }
 
         CloudBlockBlob recipeBlockBlobReference = blobContainer.getBlockBlobReference(recipesFileName);
 
         if (recipeBlockBlobReference.exists()) {
             recipeBlockBlobReference.download(new FileOutputStream(dir.getName() + "/" + recipesFileName));
-        }
-        File recipesFile = new File(dir.getName() + "/" + recipesFileName);
-        Boolean isNewRecipesFile = recipesFile.createNewFile();
-        if (!isNewRecipesFile) {
-            fileIn = new FileInputStream(recipesFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            FileRecipeList = (FileRecipeList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
         }
 
         FileInputStream fis;
@@ -400,12 +407,15 @@ public class Azure{
         FileOutputStream recipesFileOut = null;
         ObjectOutputStream recipesObjOut = null;
 
-        if (!isNewIndexFile) {
-            fileIn = new FileInputStream(indexFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            IndexList = (IndexList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
+        if (indexFile.exists()){
+          System.out.println("index file exisits");
+          fileIn = new FileInputStream(indexFile.getAbsolutePath());
+          objIn = new ObjectInputStream(fileIn);
+          IndexList = (IndexList) objIn.readObject();
+          objIn.close();
+          fileIn.close();
+        } else {
+          indexFile.createNewFile();
         }
         indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
         indexObjOut = new ObjectOutputStream(indexFileOut);
@@ -416,13 +426,15 @@ public class Azure{
             recipeBlockBlobReference.downloadToFile(dir.getName() + "/" + recipesFileName);
         }
         File recipesFile = new File(dir.getName() + "/" + recipesFileName);
-        Boolean isNewRecipesFile = recipesFile.createNewFile();
-        if (!isNewRecipesFile) {
-            fileIn = new FileInputStream(recipesFile.getAbsolutePath());
-            objIn = new ObjectInputStream(fileIn);
-            FileRecipeList = (FileRecipeList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
+        if (recipesFile.exists()){
+          //System.out.println("recipes file exisits");
+          fileIn = new FileInputStream(recipesFile.getAbsolutePath());
+          objIn = new ObjectInputStream(fileIn);
+          FileRecipeList = (FileRecipeList) objIn.readObject();
+          objIn.close();
+          fileIn.close();
+        } else {
+          recipesFile.createNewFile();
         }
 
         recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
