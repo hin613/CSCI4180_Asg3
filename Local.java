@@ -10,12 +10,12 @@ import java.security.NoSuchAlgorithmException;
 
 public class Local {
 
-    public Local() {
-      File store = new File("store");
-      if (!store.exists()) {
-        store.mkdir();
-      }
-    }
+    // public Local() {
+    //   File data = new File("data");
+    //   if (!data.exists()) {
+    //     data.mkdir();
+    //   }
+    // }
 
     public static int exp_mod(int d, int exp, int q) {
       int result = 1;
@@ -93,18 +93,18 @@ public class Local {
         ObjectOutputStream recipesObjOut = null;
 
 
-        File dir = new File("store");
+        File dir = new File("data");
 
         // error handle
         if (!fExists(dir)) {
           if (!fMkdir(dir)) {
-            // System.out.println("[ERROR] Cannot create directory: \"store\"");
+            // System.out.println("[ERROR] Cannot create directory: \"data\"");
             return;
           }
         }
 
         if (!fIsDirectory(dir)) {
-          // System.out.println("[ERROR] \"store\": not a directory");
+          // System.out.println("[ERROR] \"data\": not a directory");
           return;
         }
 
@@ -359,17 +359,18 @@ public class Local {
 
 
 
-    public void download(String fileToDownload, String storageType) throws IOException {
-      String downloadedFileName = fileToDownload + ".download";
+    public void download(String fileToDownload, String pathName, String storageType) throws IOException {
+      if (!fIsDirectory(new File(pathName))) return;
 
       try {
+        String downloadedFileName = "download_" + fileToDownload;
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
 
 
         //for local
-        File dir = new File("store");
+        File dir = new File("data");
 
         // error handle
         if (!fExists(dir)) {
@@ -457,7 +458,7 @@ public class Local {
 
 
           //for local
-          File dir = new File("store");
+          File dir = new File("data");
 
           // error handle
           if (!fExists(dir)) {
