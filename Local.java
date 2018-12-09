@@ -504,7 +504,7 @@ public class Local {
             objIn = new ObjectInputStream(fileIn);
             FileRecipeList = (FileRecipeList) objIn.readObject();
 
-            closeOutputStream(fileIn, objIn);
+            closeInputStream(fileIn, objIn);
             // objIn.close();
             // fileIn.close();
           }
