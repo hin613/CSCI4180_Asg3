@@ -29,7 +29,7 @@ public class MyDedup {
       usage();
       System.exit(1);
     }
-    String fileToProcess, storageType;
+    String fileToProcess, storageType, pathName;
     Local local = new Local();
 
     switch (args[0]) {
@@ -70,18 +70,19 @@ public class MyDedup {
         }
         break;
         case "download":
-          if (args.length != 3) {
+          if (args.length != 4) {
             usage();
             System.exit(1);
           } else {
             fileToProcess = args[1];
-            storageType = args[2];
+            pathName = args[2];
+            storageType = args[3];
             if (!(storageType.equals("local") || storageType.equals("azure"))) {
               usage();
               System.exit(1);
             } else if (storageType.equals("local")) {
               try {
-                local.download(fileToProcess, storageType);
+                local.download(fileToProcess, pathName, storageType);
               } catch (Exception e) {
                   e.printStackTrace();
               }
