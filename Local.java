@@ -17,11 +17,6 @@ public class Local {
       }
     }
 
-    public int foo (int d, int exp, int q) {
-      return 1;
-    }
-
-
     public static int exp_mod(int d, int exp, int q) {
       int result = 1;
       d = d % q;
@@ -61,6 +56,18 @@ public class Local {
         System.out.println("[ERROR] \"" + fileName.getName() + "\" is NOT a directory!");
         return false;
       }
+    }
+
+    public static void closeInputStream (FileInputStream inputFile, ObjectInputStream inputObj)
+      throws IOException {
+        inputObj.close();
+        inputFile.close();
+    }
+
+    public static void closeOutputStream (FileOutputStream outputFile, ObjectOutputStream outputObj)
+      throws IOException {
+        outputObj.close();
+        outputFile.close();
     }
 
     public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload, String storageType)
@@ -118,10 +125,12 @@ public class Local {
 
           fileIn = new FileInputStream(indexFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
+
           IndexList = (IndexList) objIn.readObject();
 
-          objIn.close();
-          fileIn.close();
+          closeInputStream(fileIn, objIn);
+          // objIn.close();
+          // fileIn.close();
         }
         indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
         indexObjOut = new ObjectOutputStream(indexFileOut);
@@ -139,8 +148,9 @@ public class Local {
           objIn = new ObjectInputStream(fileIn);
           FileRecipeList = (FileRecipeList) objIn.readObject();
 
-          objIn.close();
-          fileIn.close();
+          closeInputStream(fileIn, objIn);
+          // objIn.close();
+          // fileIn.close();
         }
 
         // System.out.println(FileRecipeList.fileRecipes);
@@ -338,10 +348,12 @@ public class Local {
 
         indexObjOut.writeObject(IndexList);
         recipesObjOut.writeObject(FileRecipeList);
-        indexObjOut.close();
-        indexFileOut.close();
-        recipesObjOut.close();
-        recipesFileOut.close();
+        closeOutputStream(indexFileOut, indexObjOut);
+        // indexObjOut.close();
+        // indexFileOut.close();
+        closeOutputStream(recipesFileOut, recipesObjOut);
+        // recipesObjOut.close();
+        // recipesFileOut.close();
     }
 
 
@@ -375,7 +387,7 @@ public class Local {
 
         // index file
         indexFile = new File(dir.getName() + "/mydedup.index");
-        
+
         // isNewIndexFile = indexFile.createNewFile();
 
         // if (!isNewIndexFile) {
@@ -383,8 +395,9 @@ public class Local {
           fileIn = new FileInputStream(indexFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
           IndexList = (IndexList) objIn.readObject();
-          objIn.close();
-          fileIn.close();
+          closeInputStream(fileIn, objIn);
+          // objIn.close();
+          // fileIn.close();
         }
 
 
@@ -395,8 +408,9 @@ public class Local {
           fileIn = new FileInputStream(recipesFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
           FileRecipeList = (FileRecipeList) objIn.readObject();
-          objIn.close();
-          fileIn.close();
+          closeInputStream(fileIn, objIn);
+          // objIn.close();
+          // fileIn.close();
         }
 
         FileInputStream fis;
@@ -420,7 +434,8 @@ public class Local {
         fos = null;
       }
       catch (Exception e) {
-          System.out.println(e.getMessage());
+        System.out.println("[ERROR] Cannot download");
+        System.out.println(e.getMessage());
       }
     }
 
@@ -468,8 +483,10 @@ public class Local {
             fileIn = new FileInputStream(indexFile.getAbsolutePath());
             objIn = new ObjectInputStream(fileIn);
             IndexList = (IndexList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
+
+            closeInputStream(fileIn, objIn);
+            // objIn.close();
+            // fileIn.close();
           }
 
           indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
@@ -486,8 +503,10 @@ public class Local {
             fileIn = new FileInputStream(recipesFile.getAbsolutePath());
             objIn = new ObjectInputStream(fileIn);
             FileRecipeList = (FileRecipeList) objIn.readObject();
-            objIn.close();
-            fileIn.close();
+
+            closeOutputStream(fileIn, objIn);
+            // objIn.close();
+            // fileIn.close();
           }
 
           recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
@@ -512,15 +531,16 @@ public class Local {
           }
 
           indexObjOut.writeObject(IndexList);
-          indexObjOut.close();
-          indexFileOut.close();
-
           recipesObjOut.writeObject(FileRecipeList);
-          recipesObjOut.close();
-          recipesFileOut.close();
+          closeOutputStream(indexFileOut, indexObjOut);
+          // indexObjOut.close();
+          // indexFileOut.close();
+          closeOutputStream(recipesFileOut, recipesObjOut);
+          // recipesObjOut.close();
+          // recipesFileOut.close();
 
         } catch (Exception e) {
-          System.out.println("delete error");
+          System.out.println("[ERROR] Cannot delete");
           System.out.println(e.getMessage());
         }
     }
