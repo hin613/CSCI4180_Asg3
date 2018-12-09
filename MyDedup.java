@@ -29,7 +29,7 @@ public class MyDedup {
       usage();
       System.exit(1);
     }
-    String fileToProcess, storageType;
+    String fileToProcess, storageType, pathName;
     Local local = new Local();
     switch (args[0]) {
       case "upload":
@@ -67,7 +67,7 @@ public class MyDedup {
             System.exit(1);
           } else {
             fileToProcess = args[1];
-            String pathName = args[2];
+            pathName = args[2];
             storageType = args[3];
             if (!(storageType.equals("local") || storageType.equals("azure"))) {
               usage();
