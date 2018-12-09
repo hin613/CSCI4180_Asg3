@@ -7,4 +7,5 @@ build:
 
 clean:
 	rm *.class
-	rm -rf store
+	rm -rf data
+	rm download_*
