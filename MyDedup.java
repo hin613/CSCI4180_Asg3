@@ -90,7 +90,7 @@ public class MyDedup {
             else if (storageType.equals("azure")) {
               try {
                 Azure azure = new Azure();
-                azure.download(fileToProcess, storageType);
+                azure.download(fileToProcess, pathName, storageType);
               } catch (Exception e) {
                   e.printStackTrace();
               }

@@ -73,7 +73,7 @@ public class Azure{
     try {
       long fileSize = file.length();
 
-      FileInputStream fis = new FileInputStream(file);
+      FileInputStream uploadFile = new FileInputStream(file);
       FileRecipeList FileRecipeList = new FileRecipeList();
       List<String> fileRecipe = new ArrayList<>();
       IndexList IndexList = new IndexList();
@@ -95,17 +95,17 @@ public class Azure{
       long dedupChunks = 0;
       double spaceSaving = 0;
 
-      dir = new File("store");
+      dir = new File("azure");
 
       // error handle
       if (!dir.exists()) {
         if (!dir.mkdir()) {
-          System.err.println("Failed to create directory \"store\"");
+          System.err.println("Failed to create directory \"azure\"");
           return;
         }
       }
       if (!dir.isDirectory()) {
-        System.err.println("\"store\" is not a directory");
+        System.err.println("\"azure\" is not a directory");
         return;
       }
 
@@ -156,13 +156,16 @@ public class Azure{
 
       for (int iteration = 0; iteration < chunkIterations; iteration++) {
         byte[] fileBytes;
+
         // initilize chunk size
         if (iteration == chunkIterations - 1) {
           fileBytes = new byte[lastChunkSize];
         } else {
           fileBytes = new byte[maxBufferSize];
         }
-        fis.read(fileBytes);
+        int inputByte = uploadFile.read(fileBytes);
+        System.out.println("inputByte: "+inputByte);
+
         int fileChunkSize = fileBytes.length;
         int m = minChunk;
         int q = avgChunk;
@@ -207,6 +210,7 @@ public class Azure{
         }
         if (checkSum.size() == chunkSize.size() && checkSum.size() > 0) {
           int numOfChunks = checkSum.size();
+          System.out.println("num of chunks: "+numOfChunks);
 
           // Do some file settings here
           for (int i = 0; i < numOfChunks; i++) {
@@ -281,8 +285,8 @@ public class Azure{
 
   }
 
-  public void download(String fileToDownload, String storageType)throws IOException{
-    String downloadedFileName = fileToDownload + ".download";
+  public void download(String fileToDownload, String pathName, String storageType)throws IOException{
+    String downloadedFileName = pathName;
     try {
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
@@ -290,16 +294,16 @@ public class Azure{
         //for local
         File dir;
 
-        dir = new File("store");
+        dir = new File("azure");
         if (!dir.exists()) {
             if (!dir.mkdir()) {
-                System.err.println("Failed to create directory \"store\"");
+                System.err.println("Failed to create directory \"azure\"");
                 System.err.println("Program terminated");
                 return;
             }
         }
         if (!dir.isDirectory()) {
-            System.err.println("\"store\" is not a directory!");
+            System.err.println("\"azure\" is not a directory!");
             return;
         }
         FileInputStream fileIn;
@@ -344,7 +348,7 @@ public class Azure{
             recipeBlockBlobReference.download(new FileOutputStream(dir.getName() + "/" + recipesFileName));
         }
 
-        FileInputStream fis;
+        FileInputStream downloadFile;
         byte[] fileBytes;
         int bytesRead = 0;
         FileOutputStream fos = new FileOutputStream(new File(downloadedFileName));
@@ -354,14 +358,14 @@ public class Azure{
 
             File file = new File(dir.getName() + "/" + chunkName);
             blob.downloadToFile(file.getAbsolutePath());
-            fis = new FileInputStream(file);
+            downloadFile = new FileInputStream(file);
             fileBytes = new byte[(int) file.length()];
-            bytesRead = fis.read(fileBytes, 0, (int) file.length());
+            bytesRead = downloadFile.read(fileBytes, 0, (int) file.length());
             fos.write(fileBytes);
             fos.flush();
             fileBytes = null;
-            fis.close();
-            fis = null;
+            downloadFile.close();
+            downloadFile = null;
         }
         fos.close();
         fos = null;
@@ -379,16 +383,16 @@ public class Azure{
         //for local
         File dir;
 
-        dir = new File("store");
+        dir = new File("azure");
         if (!dir.exists()) {
             if (!dir.mkdir()) {
-                System.err.println("Failed to create directory \"store\"");
+                System.err.println("Failed to create directory \"azure\"");
                 System.err.println("Program terminated");
                 return;
             }
         }
         if (!dir.isDirectory()) {
-            System.err.println("\"store\" is not a directory!");
+            System.err.println("\"azure\" is not a directory!");
             return;
         }
         FileInputStream fileIn;
@@ -408,7 +412,7 @@ public class Azure{
         ObjectOutputStream recipesObjOut = null;
 
         if (indexFile.exists()){
-          System.out.println("index file exisits");
+          //System.out.println("index file exisits");
           fileIn = new FileInputStream(indexFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
           IndexList = (IndexList) objIn.readObject();
