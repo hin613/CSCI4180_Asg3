@@ -454,7 +454,7 @@ public class Local {
               File hashTextFile = new File(dir.getAbsolutePath() + "/" + hashText);
               hashTextFile.delete();
               FileRecipeList.fileRecipes.remove(fileToDelete);
-              System.out.println("FileRecipeList.fileRecipes is removed");
+              // System.out.println("FileRecipeList.fileRecipes is removed");
             }
           }
 
