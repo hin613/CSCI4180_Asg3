@@ -378,8 +378,6 @@ public class Local {
     }
 
 
-
-
     public void delete(String fileToDelete, String storageType)
       throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
 
@@ -423,8 +421,6 @@ public class Local {
             IndexList = (IndexList) objIn.readObject();
 
             closeInputStream(fileIn, objIn);
-            // objIn.close();
-            // fileIn.close();
           }
 
           indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
@@ -443,8 +439,6 @@ public class Local {
             FileRecipeList = (FileRecipeList) objIn.readObject();
 
             closeInputStream(fileIn, objIn);
-            // objIn.close();
-            // fileIn.close();
           }
 
           recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
@@ -453,6 +447,7 @@ public class Local {
 
           List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDelete);
 
+          Iterator<String> it = recipeList.iterator();
           for (String hashtext : recipeList) {
             IndexList.index.get(hashtext).refCount -= 1;
             System.out.println(IndexList.index.get(hashtext).refCount);
@@ -471,11 +466,7 @@ public class Local {
           indexObjOut.writeObject(IndexList);
           recipesObjOut.writeObject(FileRecipeList);
           closeOutputStream(indexFileOut, indexObjOut);
-          // indexObjOut.close();
-          // indexFileOut.close();
           closeOutputStream(recipesFileOut, recipesObjOut);
-          // recipesObjOut.close();
-          // recipesFileOut.close();
 
         } catch (Exception e) {
           System.out.println("[ERROR] Cannot delete");
