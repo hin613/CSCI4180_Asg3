@@ -27,7 +27,7 @@ public class Local {
       if (fileName.exists()) {
         return true;
       } else {
-        System.out.println("File \"" + fileName.getName() + "\" not exist.");
+        //System.out.println("File \"" + fileName.getName() + "\" not exist.");
         return false;
       }
     }
@@ -36,7 +36,7 @@ public class Local {
       if (fileName.mkdir()) {
         return true;
       } else {
-        System.out.println("[ERROR] Cannot create directory: \"" + fileName.getName() + "\"!");
+        //System.out.println("[ERROR] Cannot create directory: \"" + fileName.getName() + "\"!");
         return false;
       }
     }
@@ -62,7 +62,7 @@ public class Local {
         outputFile.close();
     }
 
-    public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload, String storageType)
+    public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload)
       throws IOException, NoSuchAlgorithmException, ClassNotFoundException, NullPointerException {
         File file = new File(fileToUpload);
         if (!fExists(file)) {
@@ -107,10 +107,10 @@ public class Local {
         // index file
         indexFile = new File(dir.getAbsolutePath() + "/mydedup.index");
         if (!fExists(indexFile)) {
-          System.out.println("Creating index file...");
+          //System.out.println("Creating index file...");
           indexFile.createNewFile();
         } else {
-          System.out.println("Index file exisits.");
+          //System.out.println("Index file exisits.");
 
           fileIn = new FileInputStream(indexFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
@@ -126,10 +126,10 @@ public class Local {
         // receipes file
         recipesFile = new File(dir.getAbsolutePath() + "/fileRecipes.index");
         if (!fExists(recipesFile)) {
-          System.out.println("Creating recipes file...");
+          //System.out.println("Creating recipes file...");
           recipesFile.createNewFile();
         } else {
-          System.out.println("Recipes file exisits.");
+          //System.out.println("Recipes file exisits.");
 
           fileIn = new FileInputStream(recipesFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
@@ -141,7 +141,7 @@ public class Local {
         // System.out.println(FileRecipeList.fileRecipes);
 
         if (FileRecipeList.fileRecipes.containsKey(fileToUpload)) {
-            System.out.println("[ERROR] File already exists!");
+            System.out.println("File already exists!");
         }
         recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
         recipesObjOut = new ObjectOutputStream(recipesFileOut);
@@ -302,13 +302,34 @@ public class Local {
 
 
 
-    public void download(String fileToDownload, String downloadOutputFile, String storageType) throws IOException {
+    public void download(String fileToDownload, String downloadOutputFile) throws IOException {
+      String downloadedFileName = downloadOutputFile;
+      String path = "";
+      String[] words = downloadOutputFile.split("/");
+      for (int i=0;i<words.length;i++){
+        if(i==words.length-1){
+          downloadedFileName = words[i];
+        } else {
+          path += words[i] + "/";
+        }
+      }
 
       try {
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
 
+        if (!path.equals("")) {
+          File createPath;
+          createPath = new File(path);
+          if (!createPath.exists()) {
+              if (!createPath.mkdir()) {
+                  System.err.println("Failed to create directory \"azure\"");
+                  System.err.println("Program terminated");
+                  return;
+              }
+          }
+        }
 
         File dir = new File("data");
 
@@ -348,14 +369,14 @@ public class Local {
         FileInputStream dlfis;
         byte[] fileBytes;
         int bytesRead = 0;
-        FileOutputStream dlfos = new FileOutputStream(new File(downloadOutputFile));
+        FileOutputStream dlfos = new FileOutputStream(new File(path+downloadedFileName));
         List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDownload);
 
         Iterator<String> it = recipeList.iterator();
         while (it.hasNext()) {
           String chunk = it.next();
           File chunkFile = new File(dir.getAbsolutePath() + "/" + chunk);
-          System.out.println(chunkFile.length());
+          //System.out.println(chunkFile.length());
           dlfis = new FileInputStream(chunkFile);
           fileBytes = new byte[(int)chunkFile.length()];
           bytesRead = dlfis.read(fileBytes, 0, (int)chunkFile.length());
@@ -377,7 +398,7 @@ public class Local {
     }
 
 
-    public void delete(String fileToDelete, String storageType)
+    public void delete(String fileToDelete)
       throws IOException, NoSuchAlgorithmException, ClassNotFoundException {
 
         try {
@@ -410,10 +431,10 @@ public class Local {
 
 
           if (!fExists(indexFile)) {
-            System.out.println("Creating index file...");
+            //System.out.println("Creating index file...");
             indexFile.createNewFile();
           } else {
-            System.out.println("Index file exisits.");
+            //System.out.println("Index file exisits.");
             fileIn = new FileInputStream(indexFile.getAbsolutePath());
             objIn = new ObjectInputStream(fileIn);
             IndexList = (IndexList) objIn.readObject();
@@ -428,10 +449,10 @@ public class Local {
           // receipes file
           recipesFile = new File(dir.getAbsolutePath() + "/fileRecipes.index");
           if (!fExists(recipesFile)) {
-            System.out.println("Creating recipes file...");
+            //System.out.println("Creating recipes file...");
             recipesFile.createNewFile();
           } else {
-            System.out.println("Recipes file exisits.");
+            //System.out.println("Recipes file exisits.");
             fileIn = new FileInputStream(recipesFile.getAbsolutePath());
             objIn = new ObjectInputStream(fileIn);
             FileRecipeList = (FileRecipeList) objIn.readObject();

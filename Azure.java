@@ -68,7 +68,7 @@ public class Azure{
       file.delete();
   }
 
-  public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload, String storageType) throws IOException, NoSuchAlgorithmException, ClassNotFoundException, URISyntaxException{
+  public void upload(int minChunk, int avgChunk, int maxChunk, int d, String fileToUpload) throws IOException, NoSuchAlgorithmException, ClassNotFoundException, URISyntaxException{
     File file = new File(fileToUpload);
     try {
       long fileSize = file.length();
@@ -278,19 +278,42 @@ public class Azure{
       File recipe = new File(dir.getName() + "/" + recipesFileName);
 
       recipeBlockBlobReference.uploadFromFile(recipe.getAbsolutePath());
-      deleteDir(dir);
+      //deleteDir(dir);
     } catch (Exception e) {
         e.printStackTrace();
     }
 
   }
 
-  public void download(String fileToDownload, String pathName, String storageType)throws IOException{
+  public void download(String fileToDownload, String pathName)throws IOException{
     String downloadedFileName = pathName;
+    String path = "";
+    String[] words = pathName.split("/");
+    for (int i=0;i<words.length;i++){
+      if(i==words.length-1){
+        downloadedFileName = words[i];
+      } else {
+        path += words[i] + "/";
+      }
+    }
+
     try {
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
+
+        if (!path.equals("")) {
+          File createPath;
+          createPath = new File(path);
+          if (!createPath.exists()) {
+              if (!createPath.mkdir()) {
+                  System.err.println("Failed to create directory \"azure\"");
+                  System.err.println("Program terminated");
+                  return;
+              }
+          }
+        }
+
         //for local
         File dir;
 
@@ -351,8 +374,9 @@ public class Azure{
         FileInputStream downloadFile;
         byte[] fileBytes;
         int bytesRead = 0;
-        FileOutputStream fos = new FileOutputStream(new File(downloadedFileName));
+        FileOutputStream fos = new FileOutputStream(new File(path+downloadedFileName));
         List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDownload);
+
         for (String chunkName : recipeList) {
             CloudBlockBlob blob = blobContainer.getBlockBlobReference(chunkName);
 
@@ -369,13 +393,13 @@ public class Azure{
         }
         fos.close();
         fos = null;
-        deleteDir(dir);
+        //deleteDir(dir);
     } catch (Exception e) {
         System.err.println(e.getMessage());
     }
   }
 
-  public void delete(String fileToDelete, String storageType) throws IOException, NoSuchAlgorithmException, ClassNotFoundException{
+  public void delete(String fileToDelete) throws IOException, NoSuchAlgorithmException, ClassNotFoundException{
     try {
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
@@ -472,7 +496,7 @@ public class Azure{
         File recipe = new File(dir.getName() + "/" + recipesFileName);
         recipesFileNameBlobReference.uploadFromFile(recipe.getAbsolutePath());
 
-        deleteDir(dir);
+        //deleteDir(dir);
 
     } catch (Exception e) {
         System.err.println(e.getMessage());

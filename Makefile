@@ -8,4 +8,4 @@ build:
 clean:
 	rm *.class
 	rm -rf data
-	rm download_*
+	rm -rf azure
