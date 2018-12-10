@@ -302,10 +302,9 @@ public class Local {
 
 
 
-    public void download(String fileToDownload, String downloadFile, String storageType) throws IOException {
+    public void download(String fileToDownload, String downloadOutputFile, String storageType) throws IOException {
 
       try {
-        String downloadOutputFile = downloadFile;
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
@@ -399,7 +398,6 @@ public class Local {
           if (!fExists(dir)) {
             if (!fMkdir(dir)) return;
           }
-
           if (!fIsDirectory(dir)) return;
 
           FileInputStream fileIn;
@@ -446,27 +444,40 @@ public class Local {
 
 
           List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDelete);
-
           Iterator<String> it = recipeList.iterator();
-          for (String hashtext : recipeList) {
-            IndexList.index.get(hashtext).refCount -= 1;
-            System.out.println(IndexList.index.get(hashtext).refCount);
-            System.out.println("refCount -= 1");
-            if (IndexList.index.get(hashtext).refCount == 0) {
-              IndexList.index.remove(hashtext);
+          while (it.hasNext()) {
+            String hashText = it.next();
+            IndexList.index.get(hashText).refCount--;
+            if (IndexList.index.get(hashText).refCount == 0) {
+              IndexList.index.remove(hashText);
 
-              File file = new File(dir.getName() + "/" + hashtext);
-              file.delete();
-              System.out.println("file.delete()");
+              File hashTextFile = new File(dir.getAbsolutePath() + "/" + hashText);
+              hashTextFile.delete();
               FileRecipeList.fileRecipes.remove(fileToDelete);
               System.out.println("FileRecipeList.fileRecipes is removed");
             }
           }
 
+          // for (String hashtext : recipeList) {
+          //   IndexList.index.get(hashtext).refCount -= 1;
+          //   System.out.println(IndexList.index.get(hashtext).refCount);
+          //   System.out.println("refCount -= 1");
+          //   if (IndexList.index.get(hashtext).refCount == 0) {
+          //     IndexList.index.remove(hashtext);
+          //
+          //     File file = new File(dir.getName() + "/" + hashtext);
+          //     file.delete();
+          //     System.out.println("file.delete()");
+          //     FileRecipeList.fileRecipes.remove(fileToDelete);
+          //     System.out.println("FileRecipeList.fileRecipes is removed");
+          //   }
+          // }
+
           indexObjOut.writeObject(IndexList);
           recipesObjOut.writeObject(FileRecipeList);
           closeOutputStream(indexFileOut, indexObjOut);
           closeOutputStream(recipesFileOut, recipesObjOut);
+          System.out.println(fileToDelete + " is deleted.");
 
         } catch (Exception e) {
           System.out.println("[ERROR] Cannot delete");
