@@ -10,14 +10,7 @@ import java.security.NoSuchAlgorithmException;
 
 public class Local {
 
-    // public Local() {
-    //   File data = new File("data");
-    //   if (!data.exists()) {
-    //     data.mkdir();
-    //   }
-    // }
-
-    public static int exp_mod(int d, int exp, int q) {
+    public static int baseMod(int d, int exp, int q) {
       int result = 1;
       d = d % q;
       while (exp > 0) {
@@ -35,7 +28,6 @@ public class Local {
         return true;
       } else {
         System.out.println("File \"" + fileName.getName() + "\" not exist.");
-        // System.out.println("Try again!");
         return false;
       }
     }
@@ -98,13 +90,11 @@ public class Local {
         // error handle
         if (!fExists(dir)) {
           if (!fMkdir(dir)) {
-            // System.out.println("[ERROR] Cannot create directory: \"data\"");
             return;
           }
         }
 
         if (!fIsDirectory(dir)) {
-          // System.out.println("[ERROR] \"data\": not a directory");
           return;
         }
 
@@ -115,8 +105,7 @@ public class Local {
         File recipesFile;
 
         // index file
-        indexFile = new File(dir.getName() + "/mydedup.index");
-        // if (!indexFile.exists()) {
+        indexFile = new File(dir.getAbsolutePath() + "/mydedup.index");
         if (!fExists(indexFile)) {
           System.out.println("Creating index file...");
           indexFile.createNewFile();
@@ -129,15 +118,13 @@ public class Local {
           IndexList = (IndexList) objIn.readObject();
 
           closeInputStream(fileIn, objIn);
-          // objIn.close();
-          // fileIn.close();
         }
         indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
         indexObjOut = new ObjectOutputStream(indexFileOut);
 
 
         // receipes file
-        recipesFile = new File(dir.getName() + "/fileRecipes.index");
+        recipesFile = new File(dir.getAbsolutePath() + "/fileRecipes.index");
         if (!fExists(recipesFile)) {
           System.out.println("Creating recipes file...");
           recipesFile.createNewFile();
@@ -149,8 +136,6 @@ public class Local {
           FileRecipeList = (FileRecipeList) objIn.readObject();
 
           closeInputStream(fileIn, objIn);
-          // objIn.close();
-          // fileIn.close();
         }
 
         // System.out.println(FileRecipeList.fileRecipes);
@@ -172,7 +157,6 @@ public class Local {
         long totalUniqueFileBytes = 0;
         double spaceSaving = 0;
 
-        // System.out.println("-----------------------------");
         for (int interation = 0; interation < chunkIterations; interation++) {
 
             byte[] fileBytes;
@@ -184,50 +168,40 @@ public class Local {
             }
 
             uploadFile.read(fileBytes);
-
             int fileChunkSize = fileBytes.length;
-            // System.out.println(interation);
-
-
             int m = minChunk;
             int q = avgChunk;
             int s = 0;
+            int mask = (int) Math.pow(2, m) - 1;
+
             int currentChunkSize = 0;
-            int currentPos = 0;
+            int cursor = 0;
             int rfp = 0;
             int testingFP = 0;
 
-            List<Integer> offset = new ArrayList<>();
+            List<Integer> checkSum = new ArrayList<>();
             List<Integer> chunkSize = new ArrayList<>();
 
-            while ((currentPos + currentChunkSize <= fileChunkSize) && (currentPos + m <= fileChunkSize)) {
+            while ((cursor + currentChunkSize <= fileChunkSize) && (cursor + m <= fileChunkSize)) {
               if (s == 0) {
                 rfp = 0;
                 for (int i = 1; i <= m; i++) {
-                  // System.out.println("##################");
-                  rfp = (rfp + ( (int)(fileBytes[currentPos + i - 1] & 0xff) * exp_mod(d, m - i, q) )) % q;
-                  // System.out.println("currentPos + i - 1: " + (currentPos + i - 1));
-                  // System.out.println("fileBytes: " + fileBytes[currentPos + i - 1]);
-                  // System.out.println("fileBytes & 0xff: " + (fileBytes[currentPos + i - 1] & 0xff));
-                  // System.out.println("m - i: " + (m-i));
-                  testingFP += ((int)(fileBytes[currentPos + i - 1] & 0xff) * Math.pow(d, m-i)) % q;
-                  // System.out.println("rfp: " + rfp);
-                  // System.out.println("tFP: " + testingFP);
+                  rfp = (rfp + ( (int)(fileBytes[cursor + i - 1] & 0xff) * baseMod(d, m - i, q) )) % q;
+                // testingFP += ((int)(fileBytes[cursor + i - 1] & 0xff) * Math.pow(d, m-i)) % q;
                 }
                 currentChunkSize = m;
               } else {
-                rfp = (d * (rfp - exp_mod(d, m - 1, q) * (int) (fileBytes[currentPos + s - 1] & 0xff)) + fileBytes[currentPos + s + m - 1]) % q;
+                rfp = (d * (rfp - baseMod(d, m - 1, q) * (int) (fileBytes[cursor + s - 1] & 0xff)) + fileBytes[cursor + s + m - 1]) % q;
                 while (rfp < 0) {
                   rfp += q;
                 }
                 currentChunkSize++;
               }
-              // System.out.println("+++++++ RFP: " + rfp);
 
-              if ((rfp & 0xFF) == 0 || currentChunkSize == maxChunk || currentPos + currentChunkSize >= fileChunkSize) {
+              if ((rfp & 0xFF) == 0 || currentChunkSize == maxChunk || cursor + currentChunkSize >= fileChunkSize) {
                 chunkSize.add(currentChunkSize);
-                offset.add(currentPos);
-                currentPos += currentChunkSize;
+                checkSum.add(cursor);
+                cursor += currentChunkSize;
                 s = 0;
                 currentChunkSize = 0;
               } else {
@@ -236,24 +210,21 @@ public class Local {
 
           }
 
-          // handle special case: chunk smaller than m left behind
-          if (currentPos < fileChunkSize) {
-            offset.add(currentPos);
-            chunkSize.add(fileChunkSize - currentPos);
+          if (cursor < fileChunkSize) {
+            checkSum.add(cursor);
+            chunkSize.add(fileChunkSize - cursor);
           }
 
 
-          if (offset.size() == chunkSize.size() && offset.size() > 0) {
-            int numOfChunks = offset.size();
+          if (checkSum.size() == chunkSize.size() && checkSum.size() > 0) {
+            int numOfChunks = checkSum.size();
             // Do some file settings here
 
             for (int i = 0; i < numOfChunks; i++) {
               MessageDigest md = MessageDigest.getInstance("SHA-256");
-              // System.out.println(offset.get(i));
-              // System.out.println(chunkSize.get(i));
 
-              // md.update(Arrays.copyOfRange(fileBytes, offset.get(i), offset.get(i) + chunkSize.get(i)));
-              for (int j = offset.get(i); j < (offset.get(i) + chunkSize.get(i)); j++) {
+              // md.update(Arrays.copyOfRange(fileBytes, checkSum.get(i), checkSum.get(i) + chunkSize.get(i)));
+              for (int j = checkSum.get(i); j < (checkSum.get(i) + chunkSize.get(i)); j++) {
                 md.update(fileBytes[j]);
               }
 
@@ -265,9 +236,6 @@ public class Local {
               String remainHashText = null;
               String hashtext;
 
-              // while (hashtext.length() < 32) {
-              //   hashtext = "0" + hashtext;
-              // }
               if (tempHashText.length() < 32) {
                 for (int j = 0; j < (32 - tempHashText.length()); j++)
                   remainHashText += "0";
@@ -278,11 +246,11 @@ public class Local {
               }
 
 
-              if (IndexList.index.containsKey(hashtext)) { // already have that chunk, reuse it
+              if (IndexList.index.containsKey(hashtext)) {
                 // IndexList.index.get(hashtext).refCount += 1;
                 IndexList.index.get(hashtext).refCount = IndexList.index.get(hashtext).refCount + 1;
                 fileRecipe.add(hashtext);
-              } else {         // if no entry of this chunk in indexTable, do update, create new chunk
+              } else {
                 Index index = new Index();
 
                 index.chunkSize = chunkSize.get(i);
@@ -291,7 +259,7 @@ public class Local {
                 if (newChunk.createNewFile()) {
                   // new chunk file created
                   FileOutputStream tmpOs = new FileOutputStream(newChunk);
-                  tmpOs.write(fileBytes, offset.get(i), chunkSize.get(i));
+                  tmpOs.write(fileBytes, checkSum.get(i), chunkSize.get(i));
                   tmpOs.close();
 
                   IndexList.index.put(hashtext, new Index(chunkSize.get(i), 1));
@@ -306,37 +274,16 @@ public class Local {
 
 
         }
-        // System.out.println("-----------------------------");
 
         // report
-
-
-
-
-        // for (String key : IndexList.index.keySet()) {
-        //   // int refCount = IndexList.index.get(key).refCount;
-        //   // int chunkSize = IndexList.index.get(key).chunkSize;
-        //   // totalLogicChunks += refCount;
-        //   totalUniqueChunks++;
-        //   totalLogicChunks += IndexList.index.get(key).refCount;
-        //
-        //   // totalLogicFileBytes += refCount * chunkSize;
-        //   totalLogicFileBytes += IndexList.index.get(key).refCount * IndexList.index.get(key).chunkSize;
-        //   // totalUniqueFileBytes += chunkSize;
-        //   totalUniqueFileBytes += IndexList.index.get(key).chunkSize;
-        // }
-        // spaceSaving = 1 - (1.0 * totalUniqueChunks / totalLogicChunks);
-
-
         Iterator<String> it = IndexList.index.keySet().iterator();
         while (it.hasNext()) {
           String key = it.next();
           totalUniqueChunks++;
           totalLogicChunks += IndexList.index.get(key).refCount;
           totalUniqueFileBytes += IndexList.index.get(key).chunkSize;
-          totalLogicFileBytes += IndexList.index.get(key).refCount * IndexList.index.get(key).chunkSize;
+          totalLogicFileBytes += IndexList.index.get(key).chunkSize * IndexList.index.get(key).refCount;
         }
-        // spaceSaving = 1 - ((float)totalUniqueChunks / (float)totalLogicChunks);
 
         System.out.println("Total number of chunks in storage: " + totalLogicChunks);
         System.out.println("Number of unique chunks in storage: " + totalUniqueChunks);
@@ -349,27 +296,20 @@ public class Local {
         indexObjOut.writeObject(IndexList);
         recipesObjOut.writeObject(FileRecipeList);
         closeOutputStream(indexFileOut, indexObjOut);
-        // indexObjOut.close();
-        // indexFileOut.close();
         closeOutputStream(recipesFileOut, recipesObjOut);
-        // recipesObjOut.close();
-        // recipesFileOut.close();
     }
 
 
 
 
-    public void download(String fileToDownload, String pathName, String storageType) throws IOException {
-      if (!fIsDirectory(new File(pathName))) return;
+    public void download(String fileToDownload, String downloadOutputFile, String storageType) throws IOException {
 
       try {
-        String downloadedFileName = "download_" + fileToDownload;
         FileRecipeList FileRecipeList = new FileRecipeList();
         List<String> fileRecipe = new ArrayList<>();
         IndexList IndexList = new IndexList();
 
 
-        //for local
         File dir = new File("data");
 
         // error handle
@@ -382,65 +322,59 @@ public class Local {
         FileInputStream fileIn;
         ObjectInputStream objIn;
         File indexFile;
-        // Boolean isNewIndexFile;
         File recipesFile;
-        // Boolean isNewRecipesFile;
 
         // index file
-        indexFile = new File(dir.getName() + "/mydedup.index");
+        indexFile = new File(dir.getAbsolutePath() + "/mydedup.index");
 
-        // isNewIndexFile = indexFile.createNewFile();
-
-        // if (!isNewIndexFile) {
         if (!indexFile.createNewFile()) {
           fileIn = new FileInputStream(indexFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
           IndexList = (IndexList) objIn.readObject();
           closeInputStream(fileIn, objIn);
-          // objIn.close();
-          // fileIn.close();
         }
 
 
         // recipe
-        recipesFile = new File(dir.getName() + "/fileRecipes.index");
+        recipesFile = new File(dir.getAbsolutePath() + "/fileRecipes.index");
         // Boolean isNewRecipesFile = recipesFile.createNewFile();
         if (!recipesFile.createNewFile()) {
           fileIn = new FileInputStream(recipesFile.getAbsolutePath());
           objIn = new ObjectInputStream(fileIn);
           FileRecipeList = (FileRecipeList) objIn.readObject();
           closeInputStream(fileIn, objIn);
-          // objIn.close();
-          // fileIn.close();
         }
 
-        FileInputStream fis;
+        FileInputStream dlfis;
         byte[] fileBytes;
         int bytesRead = 0;
-        FileOutputStream fos = new FileOutputStream(new File(downloadedFileName));
+        FileOutputStream dlfos = new FileOutputStream(new File(downloadOutputFile));
         List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDownload);
 
-        for (String chunkName : recipeList) {
-          File file = new File(dir.getName() + "/" + chunkName);
-          fis = new FileInputStream(file);
-          fileBytes = new byte[(int) file.length()];
-          bytesRead = fis.read(fileBytes, 0, (int) file.length());
-          fos.write(fileBytes);
-          fos.flush();
+        Iterator<String> it = recipeList.iterator();
+        while (it.hasNext()) {
+          String chunk = it.next();
+          File chunkFile = new File(dir.getAbsolutePath() + "/" + chunk);
+          System.out.println(chunkFile.length());
+          dlfis = new FileInputStream(chunkFile);
+          fileBytes = new byte[(int)chunkFile.length()];
+          bytesRead = dlfis.read(fileBytes, 0, (int)chunkFile.length());
+          dlfos.write(fileBytes);
+          dlfos.flush();
           fileBytes = null;
-          fis.close();
-          fis = null;
+          dlfis.close();
+          dlfis = null;
         }
-        fos.close();
-        fos = null;
+
+        dlfos.close();
+        dlfos = null;
+        System.out.println(downloadOutputFile + " is downloaded.");
       }
       catch (Exception e) {
         System.out.println("[ERROR] Cannot download");
         System.out.println(e.getMessage());
       }
     }
-
-
 
 
     public void delete(String fileToDelete, String storageType)
@@ -464,7 +398,6 @@ public class Local {
           if (!fExists(dir)) {
             if (!fMkdir(dir)) return;
           }
-
           if (!fIsDirectory(dir)) return;
 
           FileInputStream fileIn;
@@ -473,7 +406,7 @@ public class Local {
           File recipesFile;
 
           // index file
-          indexFile = new File(dir.getName() + "/mydedup.index");
+          indexFile = new File(dir.getAbsolutePath() + "/mydedup.index");
 
 
           if (!fExists(indexFile)) {
@@ -486,8 +419,6 @@ public class Local {
             IndexList = (IndexList) objIn.readObject();
 
             closeInputStream(fileIn, objIn);
-            // objIn.close();
-            // fileIn.close();
           }
 
           indexFileOut = new FileOutputStream(indexFile.getAbsolutePath());
@@ -495,7 +426,7 @@ public class Local {
 
 
           // receipes file
-          recipesFile = new File(dir.getName() + "/fileRecipes.index");
+          recipesFile = new File(dir.getAbsolutePath() + "/fileRecipes.index");
           if (!fExists(recipesFile)) {
             System.out.println("Creating recipes file...");
             recipesFile.createNewFile();
@@ -506,8 +437,6 @@ public class Local {
             FileRecipeList = (FileRecipeList) objIn.readObject();
 
             closeInputStream(fileIn, objIn);
-            // objIn.close();
-            // fileIn.close();
           }
 
           recipesFileOut = new FileOutputStream(recipesFile.getAbsolutePath());
@@ -515,30 +444,40 @@ public class Local {
 
 
           List<String> recipeList = FileRecipeList.fileRecipes.get(fileToDelete);
+          Iterator<String> it = recipeList.iterator();
+          while (it.hasNext()) {
+            String hashText = it.next();
+            IndexList.index.get(hashText).refCount--;
+            if (IndexList.index.get(hashText).refCount == 0) {
+              IndexList.index.remove(hashText);
 
-          for (String hashtext : recipeList) {
-            IndexList.index.get(hashtext).refCount -= 1;
-            System.out.println(IndexList.index.get(hashtext).refCount);
-            System.out.println("refCount -= 1");
-            if (IndexList.index.get(hashtext).refCount == 0) {
-              IndexList.index.remove(hashtext);
-
-              File file = new File(dir.getName() + "/" + hashtext);
-              file.delete();
-              System.out.println("file.delete()");
+              File hashTextFile = new File(dir.getAbsolutePath() + "/" + hashText);
+              hashTextFile.delete();
               FileRecipeList.fileRecipes.remove(fileToDelete);
-              System.out.println("FileRecipeList.fileRecipes is removed");
+              // System.out.println("FileRecipeList.fileRecipes is removed");
             }
           }
+
+          // for (String hashtext : recipeList) {
+          //   IndexList.index.get(hashtext).refCount -= 1;
+          //   System.out.println(IndexList.index.get(hashtext).refCount);
+          //   System.out.println("refCount -= 1");
+          //   if (IndexList.index.get(hashtext).refCount == 0) {
+          //     IndexList.index.remove(hashtext);
+          //
+          //     File file = new File(dir.getName() + "/" + hashtext);
+          //     file.delete();
+          //     System.out.println("file.delete()");
+          //     FileRecipeList.fileRecipes.remove(fileToDelete);
+          //     System.out.println("FileRecipeList.fileRecipes is removed");
+          //   }
+          // }
 
           indexObjOut.writeObject(IndexList);
           recipesObjOut.writeObject(FileRecipeList);
           closeOutputStream(indexFileOut, indexObjOut);
-          // indexObjOut.close();
-          // indexFileOut.close();
           closeOutputStream(recipesFileOut, recipesObjOut);
-          // recipesObjOut.close();
-          // recipesFileOut.close();
+          System.out.println(fileToDelete + " is deleted.");
 
         } catch (Exception e) {
           System.out.println("[ERROR] Cannot delete");
