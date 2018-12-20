@@ -17,12 +17,12 @@ import com.microsoft.azure.storage.blob.*;
 import java.net.URISyntaxException;
 
 public class Azure{
-  public static final String storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=csci4180group28;AccountKey=AL9Qxr3OnckMBPgKe2g1QHcpzvCRg3Y+4yMekGOmFcJq9YPLoPe7FbwydK0IzpF//haaxV/gcq7fVd05dH+bDA==;EndpointSuffix=core.windows.net";
+  public static final String storageConnectionString = "";
 
   public static CloudStorageAccount storageAccount;
   public static CloudBlobClient blobClient;
   public static CloudBlobContainer blobContainer;
-  public static String containerName = "mycontainer";
+  public static String containerName = "";
 
   public static final String indexFileName = "mydedup.index";
   public static final String recipesFileName = "fileRecipes.index";
