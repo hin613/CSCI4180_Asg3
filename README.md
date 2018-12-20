@@ -2,7 +2,7 @@
 Without handling zero chunks (marks: 84/100)
 
 ### How to run
-1. `make`
+1. run `make`
 2. choose your actions
 * `$ java MyDedup upload <min_chunk> <avg_chunk> <max_chunk> <d> <file_to_upload> <local|azure>`
 * `$ java MyDedup download <file_to_download> <local_file_name> <local|azure>`
